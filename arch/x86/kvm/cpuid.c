@@ -14,6 +14,7 @@
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
 #include <linux/sched/stat.h>
+#include <linux/kernel.h>
 
 #include <asm/processor.h>
 #include <asm/user.h>
@@ -1072,16 +1073,40 @@ bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 }
 EXPORT_SYMBOL_GPL(kvm_cpuid);
 
+atomic_t exit_count = ATOMIC_INIT(0);
+atomic64_t total_cycles = ATOMIC_INIT(0);
+EXPORT_SYMBOL(exit_count);
+EXPORT_SYMBOL(total_cycles);
 int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 {
 	u32 eax, ebx, ecx, edx;
+	uint64_t tcycles;
 
 	if (cpuid_fault_enabled(vcpu) && !kvm_require_cpl(vcpu, 0))
 		return 1;
 
 	eax = kvm_rax_read(vcpu);
 	ecx = kvm_rcx_read(vcpu);
-	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, false);
+	if(eax == 0x4fffffff){
+	   uint32_t hi,lo;
+	   hi = (uint32_t)((atomic64_read(&total_cycles) & 0xFFFFFFFF00000000LL) >> 32);
+	   lo = (uint32_t)(atomic64_read(&total_cycles) & 0xFFFFFFFFLL);
+	   tcycles = atomic64_read(&total_cycles);
+
+	   eax = atomic_read(&exit_count);
+	   printk(KERN_INFO "exit count: %d\n",atomic_read(&exit_count));
+
+	   ebx = hi;
+	   printk(KERN_INFO "High bit: %d\n",hi);
+
+	   ecx = lo;
+	   printk(KERN_INFO "Low bits: %d\n",lo);
+
+	   printk(KERN_INFO "Total time: %lld\n",tcycles);
+	}
+	else{
+	   kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, false);
+	}
 	kvm_rax_write(vcpu, eax);
 	kvm_rbx_write(vcpu, ebx);
 	kvm_rcx_write(vcpu, ecx);

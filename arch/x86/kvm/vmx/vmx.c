@@ -5985,11 +5985,19 @@ void dump_vmcs(void)
  * The guest has exited.  See if we can fix it or if we need userspace
  * assistance.
  */
+
+extern atomic_t exit_count;
+extern atomic64_t total_cycles;
 static int vmx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 exit_reason = vmx->exit_reason;
 	u32 vectoring_info = vmx->idt_vectoring_info;
+	uint32_t result;
+	uint64_t start_time, end_time, delta;
+
+	atomic_inc(&exit_count);
+	start_time = __builtin_ia32_rdtsc();
 
 	/*
 	 * Flush logged GPAs PML buffer, this will make dirty_bitmap more
@@ -6121,8 +6129,13 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 					 kvm_vmx_max_exit_handlers);
 	if (!kvm_vmx_exit_handlers[exit_reason])
 		goto unexpected_vmexit;
-
-	return kvm_vmx_exit_handlers[exit_reason](vcpu);
+	else{
+	     result = kvm_vmx_exit_handlers[exit_reason](vcpu);
+	     end_time = __builtin_ia32_rdtsc();
+	     delta = end_time - start_time;
+	     atomic64_add(delta, &total_cycles);
+	     return result;
+	}
 
 unexpected_vmexit:
 	vcpu_unimpl(vcpu, "vmx: unexpected exit reason 0x%x\n", exit_reason);
