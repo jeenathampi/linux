@@ -5988,6 +5988,7 @@ void dump_vmcs(void)
 
 extern atomic_t exit_count;
 extern atomic64_t total_cycles;
+extern atomic_t exit_number_count[];
 static int vmx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -5997,6 +5998,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 	uint64_t start_time, end_time, delta;
 
 	atomic_inc(&exit_count);
+	atomic_inc(&exit_number_count[exit_reason]);
 	start_time = __builtin_ia32_rdtsc();
 
 	/*

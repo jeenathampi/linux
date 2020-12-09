@@ -1075,6 +1075,8 @@ EXPORT_SYMBOL_GPL(kvm_cpuid);
 
 atomic_t exit_count = ATOMIC_INIT(0);
 atomic64_t total_cycles = ATOMIC_INIT(0);
+atomic_t exit_number_count[70];
+EXPORT_SYMBOL(exit_number_count);
 EXPORT_SYMBOL(exit_count);
 EXPORT_SYMBOL(total_cycles);
 int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
@@ -1103,6 +1105,24 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 	   printk(KERN_INFO "Low bits: %d\n",lo);
 
 	   printk(KERN_INFO "Total time: %lld\n",tcycles);
+	} else if(eax == 0x4FFFFFFE){
+		uint32_t specific_count;
+		if(ecx == 35 || ecx == 38 || ecx == 42 || ecx == 65){
+			eax = 0x00000000;
+			ebx = 0x00000000;
+			ecx = 0x00000000;
+			edx = 0xFFFFFFFF;
+		}else if(ecx == 3||ecx == 4||ecx == 5||ecx == 6||ecx == 11||ecx == 16||ecx == 17||ecx == 33||ecx == 34||ecx == 51||ecx == 63||ecx == 64||ecx == 66||ecx == 67||ecx == 68){
+			eax = 0x00000000;
+                        ebx = 0x00000000;
+                        ecx = 0x00000000;
+                        edx = 0x00000000;
+		}
+		else{
+			eax = atomic_read(&exit_number_count[ecx]);
+                	specific_count = atomic_read(&exit_number_count[ecx]);
+                	printk(KERN_INFO "exit number %d exits= %d\n",ecx,specific_count);	
+		}
 	}
 	else{
 	   kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, false);
